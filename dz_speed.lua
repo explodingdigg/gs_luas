@@ -1,23 +1,35 @@
 -- WARNING WARNING
 -- THIS CODE IS REALLY SHIT. i haven't refactored it since i made it in the first place. you have been warned.
 -- WARNING WARNING
+local function file_exists(file_name)
+	local found = false
+	for k, searcher in next, package.searchers do
+		found = found or searcher(file_name)
+	end
+	return found
+end
+
+local indicators
+if file_exists("crosshair_indicators.lua") then
+	indicators = require"crosshair_indicators"
+end
 local vector = require"vector"
 local keys = database.read("colemak") and { 0x57,0x41,0x52,0x53 } or {	0x57,0x41,0x53,0x44 } -- dumb hack to make it work on my keyboard
 local SPACE = 0x20
 local CTRL = 0x11	
-local toggle_exoboost = ui.new_checkbox("MISC", "Movement", "Exo jump speed hack")
-local keybind_exoboost = ui.new_hotkey("MISC", "Movement", "Exo boost", true)
-local toggle_crouch = ui.new_checkbox("MISC", "Movement", "Crouch on exo boost")
-local color_indicators = ui.new_color_picker("misc", "Movement", "Show exo boost indicators", 255, 255, 255, 0)
+local toggle_exoboost = ui.new_checkbox("misc", "movement", "Exo jump speed hack")
+local keybind_exoboost = ui.new_hotkey("misc", "movement", "Exo boost", true)
+local toggle_crouch = ui.new_checkbox("misc", "movement", "Crouch on exo boost")
+local color_indicators = ui.new_color_picker("misc", "movement", "Show exo boost indicators", 255, 255, 255, 0)
 local toggle_extend_jump = ui.new_checkbox("misc", "movement", "Extend normal first jump")
 
 local jump_time = 0
 local speed_enabled, standing, disabled, jumped, crouching, falling
 local reference = {
-	bhop = ui.reference("MISC", "Movement", "Bunny hop"),
-	strafe = ui.reference("MISC", "Movement", "Air strafe"),
+	bhop = ui.reference("misc", "movement", "bunny hop"),
+	strafe = ui.reference("misc", "movement", "air strafe"),
 	strafe_direction = ui.reference("misc", "movement", "air strafe direction"),
-	anti_aim = ui.reference("AA", "Anti-aimbot angles", "Enabled"),
+	anti_aim = ui.reference("aa", "Anti-aimbot angles", "enabled"),
 	old_anti_aim = nil
 }
 
@@ -60,8 +72,14 @@ client.set_event_callback("paint", function()
 		if a > 0 then
 			local crouch_alpha = (falling or client.key_state(CTRL)) and a or a/3
 			renderer.indicator(r, g, b, a, "BOOST")
+			if indicators then
+				indicators.bottom(r,g,b,a, "BOOST")
+			end
 			if ui.get(toggle_crouch) then
 				renderer.indicator(r, g, b, crouch_alpha, "CROUCH")
+				if indicators then
+					indicators.bottom(r,g,b,crouch_alpha, "CROUCH")
+				end
 			end
 		end
 	else

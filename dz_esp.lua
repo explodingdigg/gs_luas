@@ -53,38 +53,34 @@ for k, v in next, flag_bits do
 end
 
 
-local toggle_boxes = ui.new_checkbox("LUA", "A", "Bounding boxes")
-local color_boxes = ui.new_color_picker("LUA", "A", "Bounding boxes", 255, 255, 255, 255)
-local toggle_dz_color = ui.new_checkbox("LUA", "A", "Danger zone team color")
-local toggle_name = ui.new_checkbox("LUA", "A", "Name")
-local toggle_hp = ui.new_checkbox("LUA", "A", "Health bar")
-local color_hp = ui.new_color_picker("LUA", "A", "Health bar", 255, 255, 255, 255)
-ui.new_label("LUA", "A", "Bottom color")
-local color_hp1 = ui.new_color_picker("LUA", "A", "why is this here", 0, 255, 0, 255)
-local toggle_weapon = ui.new_checkbox("LUA", "A", "Weapon")
-local toggle_flags = ui.new_checkbox("LUA", "A", "Flags")
+local toggle_boxes = ui.new_checkbox("lua", "A", "Bounding boxes")
+local color_boxes = ui.new_color_picker("lua", "A", "Bounding boxes", 255, 255, 255, 255)
+local toggle_dz_color = ui.new_checkbox("lua", "A", "Danger zone team color")
+local toggle_name = ui.new_checkbox("lua", "A", "Name")
+local toggle_hp = ui.new_checkbox("lua", "A", "Health bar")
+local color_hp = ui.new_color_picker("lua", "A", "Health bar", 255, 255, 255, 255)
+ui.new_label("lua", "A", "Bottom color")
+local color_hp1 = ui.new_color_picker("lua", "A", "Bottom color", 0, 255, 0, 255)
+local toggle_weapon = ui.new_checkbox("lua", "A", "Weapon")
+local toggle_flags = ui.new_checkbox("lua", "A", "Flags")
 local toggle_declutter = ui.new_checkbox("lua", "a", "Declutter screen")
 local hotkey_declutter = ui.new_hotkey("lua", "a", "declutter screen keybind", true)
-local multiselect_flags = ui.new_multiselect("LUA", "A", "Exclude flags", flag_names)
+local multiselect_flags = ui.new_multiselect("lua", "A", "Exclude flags", flag_names)
 ui.set_visible(multiselect_flags, ui.get(toggle_flags))
 
-local toggle_dz_traps = ui.new_checkbox("LUA", "A", "Breach charge warning")
+local toggle_dz_traps = ui.new_checkbox("lua", "A", "Breach charge warning")
 local toggle_dz_breachcharge = ui.new_checkbox("lua", "a", "Show breach charge items")
 local color_dz_breachcharge = ui.new_color_picker("lua", "a", "Show breach charge color")
-local toggle_dz_ammo = ui.new_checkbox("LUA", "A", "Ammo boxes")
-local color_dz_ammo = ui.new_color_picker("LUA", "A", "Danger zone ammo", 200, 127, 59, 255)
+local toggle_dz_ammo = ui.new_checkbox("lua", "A", "Ammo boxes")
+local color_dz_ammo = ui.new_color_picker("lua", "A", "Danger zone ammo", 200, 127, 59, 255)
 local toggle_dz_medishot = ui.new_checkbox("lua", "a", "Health shots")
-local color_dz_medishot = ui.reference("VISUALS", "Other ESP", "Dropped weapons") + 1
+local color_dz_medishot = ui.reference("visuals", "Other ESP", "Dropped weapons") + 1
 local toggle_arrows = ui.new_checkbox("lua", "a", "Arrow indicators")
 local multiselect_arrows = ui.new_multiselect("lua", "a", "\narrow_settings", "Render on screen", "Always render closest", "Name", "Flags", "Distance based size", "Distance based opacity", "Bump flag")
 local color_arrows = ui.new_color_picker("lua", "a", "Arrow color")
 local slider_arrows_size = ui.new_slider("lua", "a", "\narrow_size", 1, 100, 20, true, "px")
 local slider_arrows_radius = ui.new_slider("lua", "a", "\narrow_radius", 1, 100, 30, true, "%")
 local slider_arrows_pulse = ui.new_slider("lua", "a", "Pulse", 0, 100, 0, true, "%", 1, {[0] = "Off"})
---1023 vest
---1025 helmet
---1024 vest+helmet
---local toggle_debug = ui.new_checkbox("LUA", "A", "Show all entity classnames")
 
 local dz_team_colors = {
 	{ 255, 85, 94 },
@@ -113,6 +109,7 @@ function update_max_hp()
 		max_hp = 100
 	end
 end
+
 client.set_event_callback("player_connect_full", update_max_hp)
 
 local function triangle(x, y, s, r, g, b, a)
@@ -175,13 +172,13 @@ client.set_event_callback("player_connect_full", reset_respawn_times)
 client.set_event_callback("player_death", function(e)
 	local victim = client.userid_to_entindex(e.userid)
 	local team = entity.get_prop(victim, "m_nSurvivalTeam")
-
+	
 	if player_respawn_times[victim] then
 		player_respawn_times[victim] = player_respawn_times[victim] + 10
 	else	
 		player_respawn_times[victim] = 10
 	end
-
+	
 	if team then
 		team_respawn_times[team] = globals.curtime() + player_respawn_times[victim]
 	end
