@@ -1,3 +1,5 @@
+-- tutorial on using this lua https://youtu.be/_BHSAPIZnXY
+
 local PREFIX_LOCATION = "auto_respawn_location_"
 local function get_respawn_location(map)
 	return database.read(PREFIX_LOCATION .. map)
