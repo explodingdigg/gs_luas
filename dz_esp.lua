@@ -138,7 +138,7 @@ local clamp = function(a, low, high)
 	return a
 end
 
-local function rotate_around_c(angle, center, point, point_)
+local function rotate_around_c(angle, center, point, point_) -- yea this is pasted get over it
 	local s = math.sin(angle)
 	local c = math.cos(angle)
 	
@@ -553,11 +553,15 @@ client.set_event_callback("paint", function()
 				local text_a = 1
 				local size = arrow_size
 				local rad = arrow_radius
-				local _, angle = local_position:to(position):angles()
+				local angle_p, angle = local_position:to(position):angles()
 				local dist = position:dist(local_position)
 				local dist_limit = 2500
 				local dist_sc = math.min(dist_limit, dist)/dist_limit
+				
+				local text
 
+				if angle_p > 30 then text = "DOWN" elseif angle_p < -30 then text = "UP" end
+				
 				if arrow_toggles["Distance based opacity"] then
 					mult_a = (1-dist_sc)
 					text_a = mult_a
@@ -586,6 +590,9 @@ client.set_event_callback("paint", function()
 						renderer.text((min_x + max_x)/2, min_y, 255, 255, 255, 255 * text_a, "c", nil, entity.get_player_name(ent))
 					end
 					if arrow_toggles.Flags then
+						if text then
+							renderer.text((max_x + min_x)/2, (max_y + min_y)/2, 255, 255, 255, 255 * text_a, "c-", nil, text)
+						end
 						render_flags(max_x, min_y+8, t, flags, true, true, 255 * text_a)
 					end
 				end

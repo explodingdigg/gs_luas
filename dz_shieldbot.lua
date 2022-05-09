@@ -31,19 +31,16 @@ local get_abs_angles = vmt_thunk(11, "float*(__thiscall*)(void*)")
 local entitylist = ffi.cast(ffi.typeof("void***"), client.create_interface("client.dll", "VClientEntityList003"));
 local get_client_entity = ffi.cast("get_client_entity_t", entitylist[0][3])
 
-local multiselect_target_hitbox = ui.reference("RAGE", "Aimbot", "Target hitbox")
-local toggle_shieldbot = ui.new_checkbox("RAGE", "Other", "Avoid shielded players")
+local multiselect_target_hitbox = ui.reference("rage", "aimbot", "Target hitbox")
+local toggle_shieldbot = ui.new_checkbox("rage", "other", "Avoid shielded players")
 local toggle_shieldbot_indicator = ui.new_checkbox("rage", "other", "Feet indicator")
 local color_shieldbot_indicator = ui.new_color_picker("rage", "other", "Feet indicator color", 255, 255, 0, 255)
-local multiselect_shieldbot_hitboxes = ui.new_multiselect("RAGE", "Other", "Return hitboxes",
+local multiselect_shieldbot_hitboxes = ui.new_multiselect("rage", "Other", "Return hitboxes",
 	"Head", "Chest",
 	"Stomach", "Arms",
 	"Legs", "Feet"
 )
-local slider_shieldbot_angle_scale = ui.new_slider("rage", "other", "Angle scale", 10, 150, 90, true, "%")
-
-ui.set_visible(multiselect_shieldbot_hitboxes, ui.get(toggle_shieldbot))
-ui.set_visible(slider_shieldbot_angle_scale, ui.get(toggle_shieldbot))
+local slider_shieldbot_angle_scale = ui.new_slider("rage", "other", "Angle scale", 10, 150, 80, true, "dg") -- idk why ° isn't supported by gs menu but ok
 
 do -- config shit
 	local update_ui = function()
@@ -104,21 +101,19 @@ client.set_event_callback("paint", function()
 			if shield then
 				local x, y, z = entity.get_origin(player)
 				local position = vector(x,y,z)
-				local _, angle = entity.get_prop(player, "m_angEyeAngles")
 				local _, angle_to = position:to(local_position):angles()
-				local holding = entity.get_classname(entity.get_player_weapon(player)) == "CWeaponShield"
-				local angle3 = get_abs_angles(get_client_entity(entitylist, shield))
-				local angle_to = (angle3[1] - angle_to) % 360
+				local angle = get_abs_angles(get_client_entity(entitylist, shield))[1]
+				local angle_to = (angle - angle_to) % 360
 				
-				local mult = (ui.get(slider_shieldbot_angle_scale)-1) / 100
-				local shield_angles = { 180 - mult * 90, 180 + mult * 90 } -- this is braindead
+				local mult = (ui.get(slider_shieldbot_angle_scale))
+				local shield_angles = { 180 - mult, 180 + mult } -- this is braindead
 				
 				if ui.is_menu_open() then -- ugly as fuck
 					local x1,y1 = renderer.world_to_screen(x,y,z)
-					local angle_diff = math.rad(shield_angles[1])
+					local angle_diff = math.rad(angle + shield_angles[1])
 					local x2, y2 = renderer.world_to_screen(x+math.cos(angle_diff) * 100,y+math.sin(angle_diff) * 100, z)
 					renderer.line(x1,y1,x2,y2, 255, 255, 255, 255)
-					angle_diff = math.rad(shield_angles[2])
+					angle_diff = math.rad(angle + shield_angles[2])
 					x2, y2 = renderer.world_to_screen(x+math.cos(angle_diff) * 100,y+math.sin(angle_diff) * 100, z)
 					renderer.line(x1,y1,x2,y2, 255, 255, 255, 255)
 				end
@@ -128,11 +123,11 @@ client.set_event_callback("paint", function()
 				else
 					ui.set(multiselect_target_hitbox, { "Feet" })
 					if ui.get(toggle_shieldbot_indicator) then
-						print('feet')
+						local r,g,b,a = ui.get(color_shieldbot_indicator)
+						renderer.indicator(r, g, b, a, "FEET")
 						if indicators then
-							indicators.bottom(ui.get(color_shieldbot_indicator), "FEET")
+							indicators.bottom(r, g, b, a, "FEET")
 						end
-						renderer.indicator(ui.get(color_shieldbot_indicator), "FEET")
 					end
 				end
 			else

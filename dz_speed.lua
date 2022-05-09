@@ -1,5 +1,8 @@
-local keys = { w=0x57,a=0x41,s=0x53,d=0x44,ctrl=0x11,space=0x20 }
--- we can't use the setup_command to check directional movement
+local keys = { w=0x57,a=0x41,s=0x53,d=0x44 } -- dumb hack to make it work on my keyboard
+if database.read("colemak") then
+	keys = { w=0x57,a=0x41,s=0x52,d=0x53 }
+end
+-- we can't use the setup_command to check directional movement,
 -- so we have to use this instead
 
 local function key_states(...)
@@ -24,6 +27,18 @@ local ref = {
 local jump_time = 0
 client.set_event_callback("setup_command", function(cmd) -- all logic located here
 	if not ui.get(toggle_exoboost) then return end
+	
+	local local_player = entity.get_local_player()
+	if not local_player then return end
+	
+	local x, y, z = entity.get_origin(local_player)
+	local vel_z = entity.get_prop(local_player, "m_vecVelocity[2]")
+	local on_ground = bit.band(entity.get_prop(local_player, "m_fFlags"), 1) == 1
+	local rappeling = entity.get_prop(local_player, "m_bIsSpawnRappelling") == 1 -- avoid auto strafe with spawn rappel
+	local in_water = entity.get_prop(local_player, "m_nWaterLevel") ~= 0 -- avoid auto strafe in water because it reduces speed
+	
+	ui.set(ref.air_strafe, not rappeling and not in_water)
+	
 	if not ui.get(keybind_exoboost) then return end
 	
 	if ref.old_anti_aim == nil then
@@ -37,15 +52,10 @@ client.set_event_callback("setup_command", function(cmd) -- all logic located he
 	else
 		ui.set(ref.anti_aim, false)
 	end
-	
-	local local_player = entity.get_local_player()
-	local x, y, z = entity.get_origin(local_player)
-	local vel_z = entity.get_prop(local_player, "m_vecVelocity[2]")
-	local on_ground = bit.band(entity.get_prop(local_player, "m_fFlags"), 1) == 1
+	ui.set(ref.air_strafe, not on_ground and not rappeling and not in_water)
 	
 	cmd.in_jump = ui.get(keybind_exoboost)
-	cmd.in_duck = vel_z < 10 and not client.visible(x, y, z - 90) -- crouching gives extra speed when landing
-	ui.set(ref.air_strafe, not on_ground)
+	cmd.in_duck = vel_z < 10 and not client.visible(x, y, z - 90) and not in_water -- crouching gives extra speed when landing
 	
 	if on_ground then
 		jump_time = globals.curtime()
