@@ -15,18 +15,25 @@ end
 
 local toggle_exoboost = ui.new_checkbox("misc", "movement", "Exo jump speed hack")
 local keybind_exoboost = ui.new_hotkey("misc", "movement", "Exo boost", true)
+local toggle_disable_bunnyhop = ui.new_checkbox("misc", "movement", "Disable bunny hop otherwise")
 
 local ref = {
-	air_strafe = ui.reference("misc", "movement", "air strafe"),
-	strafe_direction = ui.reference("misc", "movement", "air strafe direction"),
-	bunny_hop = ui.reference("misc", "movement", "bunny hop"),
-	anti_aim = ui.reference("aa", "anti-aimbot angles", "enabled"),
-	old_anti_aim = nil -- idk where else to put this.
+	air_strafe = ui.reference("misc", "movement", "air strafe");
+	strafe_direction = ui.reference("misc", "movement", "air strafe direction");
+	bunny_hop = ui.reference("misc", "movement", "bunny hop");
+	anti_aim = ui.reference("aa", "anti-aimbot angles", "enabled");
 }
+
+ui.set_visible(toggle_disable_bunnyhop, ui.get(toggle_exoboost))
+ui.set_callback(toggle_exoboost, function()
+	ui.set_visible(toggle_disable_bunnyhop, ui.get(toggle_exoboost))
+end)
 
 local jump_time = 0
 client.set_event_callback("setup_command", function(cmd) -- all logic located here
-	if not ui.get(toggle_exoboost) then return end
+	if not ui.get(toggle_exoboost) then
+		return
+	end
 	
 	local local_player = entity.get_local_player()
 	if not local_player then return end
@@ -39,19 +46,11 @@ client.set_event_callback("setup_command", function(cmd) -- all logic located he
 	
 	ui.set(ref.air_strafe, not rappeling and not in_water)
 	
+	if ui.get(toggle_disable_bunnyhop) then
+		ui.set(ref.bunny_hop, ui.get(keybind_exoboost))
+	end
 	if not ui.get(keybind_exoboost) then return end
 	
-	if ref.old_anti_aim == nil then
-		ref.old_anti_aim = ui.get(ref.anti_aim)
-	end
-	if jump_time < globals.curtime() then
-		if ref.old_anti_aim ~= nil then -- enable anti aim after jumping so it jumps straight
-			ui.set(ref.anti_aim, ref.old_anti_aim)
-			ref.old_anti_aim = nil
-		end
-	else
-		ui.set(ref.anti_aim, false)
-	end
 	ui.set(ref.air_strafe, not on_ground and not rappeling and not in_water)
 	
 	cmd.in_jump = ui.get(keybind_exoboost)
@@ -59,9 +58,6 @@ client.set_event_callback("setup_command", function(cmd) -- all logic located he
 	
 	if on_ground then
 		jump_time = globals.curtime()
-		if ref.old_anti_aim ~= nil then
-			ui.set(ref.anti_aim, ref.old_anti_aim)
-		end
 		
 		local strafe_directions = ui.get(ref.strafe_direction)
 		local dir_x, dir_y = 0, 0
