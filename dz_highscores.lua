@@ -1,3 +1,5 @@
+--i doubt you can beat my high scores :)
+--https://cdn.discordapp.com/attachments/946693963845361684/973383477825257512/unknown.png
 local indent = 0
 client.set_event_callback('paint_ui', function()
    indent = 0
