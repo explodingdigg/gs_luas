@@ -12,6 +12,7 @@ if file_exists("betterboxes.lua") then
 	better_boxes = require("betterboxes")
 end
 local vector = require("vector")
+local ffi = require("ffi")
 local flag_names = {
 	"H", -- text which will be displayed
 	"K",
@@ -52,6 +53,8 @@ for k, v in next, flag_bits do
 	end
 end
 
+local game_client_exports = ffi.cast("void***", client.create_interface("client.dll", "GameClientExports001"))[0]
+local is_player_muted = ffi.cast("bool(__thiscall*)(void*, int playerIndex)", game_client_exports[1]) -- stolen from samzsakers thank you. i don't know ffi :)
 
 local toggle_boxes = ui.new_checkbox("lua", "A", "Bounding boxes")
 local color_boxes = ui.new_color_picker("lua", "A", "Bounding boxes", 255, 255, 255, 255)
@@ -108,6 +111,7 @@ function update_max_hp()
 	else
 		max_hp = 100
 	end
+	player_hurt_times = {}
 end
 
 client.set_event_callback("player_connect_full", update_max_hp)
@@ -118,6 +122,8 @@ local function triangle(x, y, s, r, g, b, a)
 		table.insert(tri_points, math.floor(x + math.sin(i / 3 * math.pi * 2) * s))
 		table.insert(tri_points, math.floor(y - math.cos(i / 3 * math.pi * 2) * s))
 	end
+	local tp = tri_points
+	renderer.triangle(tp[1], tp[2],tp[3], tp[4],tp[5],tp[6], r,g,b,a)
 	renderer.triangle(unpack(tri_points), r, g, b, a)
 end
 
@@ -155,6 +161,7 @@ end
 
 local ignored_weapons = {["Bare Hands"]=1,Tablet=1,}
 local weapon_replacements = {["Dual Berettas"] = "Dualies", ["Glock-18"] = "Glonk", ["CZ75-Auto"] = "CZ75", ["Five-SeveN"] = "FiveSeven", }
+local player_hurt_times = {}
 local player_respawn_times = {}
 local team_respawn_times = {}
 local arrow_times = {}
@@ -182,6 +189,12 @@ client.set_event_callback("player_death", function(e)
 	if team then
 		team_respawn_times[team] = globals.curtime() + player_respawn_times[victim]
 	end
+	player_hurt_times[victim] = nil
+end)
+
+client.set_event_callback("player_hurt", function(e)
+	local victim = client.userid_to_entindex(e.userid)
+	player_hurt_times[victim] = globals.curtime()
 end)
 
 local function render_flags(x, y, t, flags, show, render_all_info, a)
@@ -218,15 +231,15 @@ client.set_event_callback("paint", function()
 	local local_position, local_velocity, speed
 	local width, height = client.screen_size()
 	if local_player then
-		local_position = vector(entity.get_origin(local_player))
+		local_position = vector(client.eye_position())
 		local width, height = client.screen_size()
 		local local_health = entity.get_prop(local_player, "m_iHealth")
-
+		
 		local velox = math.ceil(math.abs(entity.get_prop(local_player, "m_vecVelocity")))
 		local veloy = math.ceil(math.abs(entity.get_prop(local_player, "m_vecVelocity[1]")))
 		local_velocity = vector(velox, veloy)
 		speed = local_velocity:length()
-
+		
 		if ui.get(toggle_dz_ammo) then
 			local entities = entity.get_all("CPhysPropAmmoBox")
 			local smallest_distance = 100000^2
@@ -316,7 +329,6 @@ client.set_event_callback("paint", function()
 					-- local ry = y - (s * 0.5)
 					-- local rx1 = s / 5
 					-- local ry1 = s * 0.5
-					-- renderer.triangle(rx, ry, rx+rx1, ry, rx+rx1/2, ry+ry1, 0, 0, 0, 255)
 					local rx = x - (s / 10)
 					local ry = y - (s * 0.5)
 					local rx1 = s / 5
@@ -381,7 +393,7 @@ client.set_event_callback("paint", function()
 	for i = 1, globals.maxplayers() do -- getting team sizes
 		local team = entity.get_prop(i, "m_nSurvivalTeam")
 		if local_player and team ~= local_team and entity.is_alive(i) then
-			local local_position = vector(entity.get_origin(local_player))
+			local local_position = vector(client.eye_position())
 			local position = vector(entity.get_origin(i))
 			local dist = position:dist(local_position)
 			if dist < closest_player_dist then
@@ -431,6 +443,7 @@ client.set_event_callback("paint", function()
 		local team = entity.get_prop(ent, "m_nSurvivalTeam")
 		local flags = {}
 		local position = vector(entity.get_origin(ent))
+		
 		if ent ~= local_player and entity.is_alive(ent) and entity.is_enemy(ent) and (position.x ~= 0 or position.y ~= 0) then
 			if dz and ui.get(toggle_dz_color) then
 				r, g, b = unpack(dz_team_colors[team + 2])
@@ -446,6 +459,9 @@ client.set_event_callback("paint", function()
 
 			if ui.get(toggle_flags) then
 				local esp_data = entity.get_esp_data(ent)
+				if is_player_muted(game_client_exports, ent) then
+					table.insert(flags, { text = "MUTE", r = 255, g = 0, b = 40, override = true})
+				end
 				if dz and not warmup then -- above regular flags
 					if entity.get_prop(local_player, "m_hSurvivalAssassinationTarget") == ent then
 						table.insert(flags, { text = "TRGT", r = 255, g = 0, b = 255 })
@@ -520,7 +536,14 @@ client.set_event_callback("paint", function()
 					renderer.gradient(leftside, y, 2, height, r, g, b, a * t, r2, g2, b2, a2 * t, false)
 					renderer.rectangle(leftside - 1, y - 1, 4, height - pos, 20, 20, 20, 220)
 					if show or render_all_info then
-						renderer.text(leftside - 4, h - clamp(pos + 3, 8, height + 4), 255, 255, 255, a * t, "-rd", 0, health)
+						local r, g, b = 255, 255, 255
+						local z = player_hurt_times[ent]
+						if z and z + 1 > globals.curtime() then
+							if math.abs(z - globals.curtime()) > 2 then player_hurt_times[ent] = nil end
+							g = (math.cos((globals.curtime() - z) * 12) + 1) / 2 * 255
+							b = g
+						end
+						renderer.text(leftside - 4, h - clamp(pos + 3, 8, height + 4), r, g, b, a * t, "-rd", 0, health)
 					end
 				end
 
@@ -578,12 +601,15 @@ client.set_event_callback("paint", function()
 				end
 				if not x or arrow_toggles["Render on screen"] then
 					angle = math.rad(270 - angle + view_y)
-					local point = vector(math.floor(width/2+math.cos(angle)*arrow_radius), math.floor(height/2+math.sin(angle)*arrow_radius))
+					local offset = vector(math.floor(math.cos(angle)*arrow_radius), math.floor(math.sin(angle)*arrow_radius))
+					local center = vector(width/2, height/2)
+					local point = offset + center
+					local point4 = offset + center - offset:normalized() * size * 1.7
 					local point1, point2 = vector(point.x-1 * size, point.y-2 * size), vector(point.x+1 * size, point.y-2 * size)
 					local px, py = point.x, point.y
 					local x, y, x1, y1 = rotate_around_c(angle-math.pi/2, point, point1, point2)
-					renderer.triangle(point.x, point.y, x, y, x1, y1, r, g, b, a * mult_a)
-					
+					renderer.triangle(point.x, point.y, x, y, point4.x, point4.y, r, g, b, a * mult_a)
+					renderer.triangle(point.x, point.y, x1, y1, point4.x, point4.y, r, g, b, a * mult_a)
 					local min_x, min_y, max_x, max_y = math.min(x,x1,px),math.min(y,y1,py),math.max(x,x1,px),math.max(y,y1,py)
 					
 					if arrow_toggles.Name then
